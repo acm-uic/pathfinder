@@ -1,0 +1,58 @@
+import os, sys, re, math, xml.dom.minidom
+
+def getFileForNode(id):
+	type = id[0]
+	num = int(id[1:])
+
+	rangeFile = open("ranges.txt", "r")
+	Lines = rangeFile.readlines()
+	for line in Lines:
+		arr = line.split()
+		if type == "R":
+			if arr[1] != "X" and arr[2] != "X" and num>int(arr[1]) and num<int(arr[2]):
+				return arr[0]
+		if type == "H":
+			if arr[3] != "X" and arr[4] != "X" and num>int(arr[3]) and num<int(arr[4]):
+				return arr[0]
+		if type == "T":
+			if arr[5] != "X" and arr[6] != "X" and num>int(arr[5]) and num<int(arr[6]):
+				return arr[0]
+
+def getXMLFileObject(fileName):
+	return xml.dom.minidom.parse( fileName + ".xml" )
+
+def getNode(id):
+	xmlObject = getXMLFileObject( getFileForNode(id) )
+
+	for node in xmlObject.getElementsByTagName("node"):
+		if node.firstChild.firstChild.data == id:
+			return node
+	print "ERROR: FAILED TO FIND NODE " + id
+	sys.exit(1)
+
+def getNodeId(node):
+	return node.firstChild.firstChild.nodeValue
+
+def getNodeType(node):
+	return node.childNodes[1].firstChild.nodeValue
+
+def getNodeCoordinate(node):
+	return ( node.childNodes[2].firstChild.firstChild.nodeValue, node.childNodes[2].lastChild.firstChild.nodeValue )
+
+def getDistanceBetweenNodes(node1, node2):
+	firstCoordinate = getNodeCoordinate(node1)
+	secondCoordinate = getNodeCoordinate(node2)
+	return math.sqrt( math.pow(firstCoordinate[0]-secondCoordinate[0], 2) + math.pow(firstCoordinate[1]-secondCoordinate[1], 2) )
+
+def getAdjacentNodes(node):
+	adjacentNodes = []
+	for childNode in node.lastChild.childNodes:
+		adjacentNodes.append( getNode( childNode.nodeValue ) )
+	return adjacentNodes
+	
+def debugPrintNode(id):
+	print "Information for node: " + getNodeId( getNode(id) )
+	print "\t Type:              " + getNodeType( getNode(id) )
+	print "\t Coord:             " + str(getNodeCoordinate( getNode(id) ))
+
+debugPrintNode("R137")

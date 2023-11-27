@@ -1,0 +1,36 @@
+html {
+  height:100%; 
+  max-height:100%;
+  padding:0; 
+  margin:0; 
+  border:0; 
+  font-size:76%; 
+  font-family: trebuchet ms, tahoma, verdana, arial, sans-serif; 
+  background:#fff url(clown.jpg) -18px 0 no-repeat; 
+  overflow: hidden; 
+}
+
+body {height:100%; max-height:100%; overflow:hidden; padding:0; margin:0; border:0;}
+#content {display:block; height:100%; max-height:100%; overflow:auto; padding-left:150px; padding-top:100px; position:relative; z-index:3;}
+#head {position:fixed; margin:0; top:0; right:0px; display:block; width:100%; height:100px; background:url(../umpf/images/banner.jpg) no-repeat #ddd; font-size:4em; z-index:5; color:#fff;}
+#foot {position:fixed; margin:0; bottom:-1px; right:18px; display:block; width:100%; height:50px; background:rgb(214,100,50); color:#fff; text-align:right; font-size:1em; z-index:4;}
+
+#left {position:fixed; left:0; top:0; height:100%; width:150px; background: #000033; background-position:0 100px;; font-size:1em; color:#fff;z-index:4;}
+
+* html #head, * html #foot,* html #left {position:absolute;}
+
+#padding1 {display:block; width:18px; height:100px; float:left;}
+#padding3 {display:block; width:18px; height:50px; float:left;}
+.padding2 {display:block; height:100px;}
+
+#content p {padding:5px;}
+
+.bold {font-size:1.2em; font-weight:bold;}
+
+#wordsLeft {float:left; top:100px; left:150px; height:200px; width:150px; background:#efd; border:1px solid #000; margin:5px; padding:5px;}
+#wordsRight {float:right; top:100px; right:150px; height:200px; width:150px; background:#def; border:1px solid #000; margin:5px; padding:5px;}
+#wordsabsolute {position:absolute; top:280px; left:400px; background:#eee; border:1px solid #000; margin:5px; padding:5px; font-size:2em; color:#c00;}
+#wordsRelative {position:relative; top:10px; left:30px; background:#ddd; border:1px solid #000; margin:5px; padding:5px; font-size:2em; color:#c00; width:200px;}
+
+a.nav, a.nav:visited {display:block; width:100px; height:25px; text-decoration:none; color:#fff; font-weight:bold; line-height:25px; font-size:1.5em;}
+a.nav:hover {color:#ff0000;}

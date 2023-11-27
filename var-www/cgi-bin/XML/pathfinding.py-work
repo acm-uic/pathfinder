@@ -1,0 +1,497 @@
+import os, sys, re, math, xml.dom.minidom, Image, ImageDraw, ImageFont
+
+isLive = True
+showTransfers = True
+
+def getFileForNode(id):
+	type = id[0]
+	num = int(id[1:])
+	
+	path = ""
+	if isLive == True:
+		path = "XML/ranges.txt"
+	else:
+		path = "ranges.txt"
+
+	rangeFile = open(path, "r")
+
+	Lines = rangeFile.readlines()
+	for line in Lines:
+		arr = line.split()
+		if type == "R":
+			if arr[1] != "X" and arr[2] != "X" and num>=int(arr[1]) and num<=int(arr[2]):
+				return arr[0]
+		if type == "H":
+			if arr[3] != "X" and arr[4] != "X" and num>=int(arr[3]) and num<=int(arr[4]):
+				return arr[0]
+		if type == "T":
+			if arr[5] != "X" and arr[6] != "X" and num>=int(arr[5]) and num<=int(arr[6]):
+				return arr[0]
+
+	print "Something very very bad happened searching for " + id
+	print_stack()
+	sys.exit(1)
+
+def getRangeFromNode(node):
+	type = node[0]
+	num = int(node[1:])
+
+	path = ""
+	if isLive == True:
+		path = "XML/ranges.txt"
+	else:
+		path = "ranges.txt"
+	print node
+	rangeFile = open(path, "r")
+	Lines = rangeFile.readlines()
+	for line in Lines:
+		arr = line.split()
+		if type == "R":
+			if arr[1] != "X" and arr[2] != "X" and num>=int(arr[1]) and num<=int(arr[2]):
+				return arr
+		if type == "H":
+			if arr[3] != "X" and arr[4] != "X" and num>=int(arr[3]) and num<=int(arr[4]):
+				return arr
+		if type == "T":
+			if arr[5] != "X" and arr[6] != "X" and num>=int(arr[5]) and num<=int(arr[6]):
+				return arr
+
+	print "Something very very bad happened searching for " + node
+	print_stack()
+	sys.exit(1)
+
+	
+
+def getXMLFileObject(fileName):
+	filePath = ""
+	if isLive == True:
+		filePath = "XML/" + fileName + ".xml"
+	else:
+		filePath = fileName + ".xml"
+	return xml.dom.minidom.parse( filePath )
+
+def getNode(id):
+	xmlObject = getXMLFileObject( getFileForNode(id) )
+
+	for node in xmlObject.getElementsByTagName("node"):
+		if node.firstChild.firstChild.data == id:
+			return node
+	print "ERROR: FAILED TO FIND NODE " + id + " in file " + getFileForNode(id)
+	print_stack()
+	sys.exit(1)
+
+def getNodeId(node):
+	return node.firstChild.firstChild.nodeValue
+
+def getNodeType(node):
+	return node.childNodes[1].firstChild.nodeValue
+
+def getNodeCoordinate(node):
+	return ( float(node.childNodes[2].firstChild.firstChild.nodeValue), float(node.childNodes[2].lastChild.firstChild.nodeValue) )
+
+def getDistanceBetweenNodes(node1, node2):
+	firstCoordinate = getNodeCoordinate(node1)
+	secondCoordinate = getNodeCoordinate(node2)
+
+	return math.sqrt( math.pow(firstCoordinate[0]-secondCoordinate[0], 2) + math.pow(firstCoordinate[1]-secondCoordinate[1], 2) )
+
+def getAdjacentNodes(node):
+	adjacentNodes = []
+	for childNode in node.lastChild.childNodes:
+		adjacentNodes.append( getNode( childNode.firstChild.nodeValue ) )
+	return adjacentNodes
+
+def getAdjacentTransferNodes(node):
+        if type(node) != type("String"):
+                node = getNodeId(node)
+
+        adjacentNodes = []
+        filePath = ""
+        if isLive == True:
+                filePath = "XML/transfers.txt"
+        else:
+                filePath = "transfers.txt"
+
+        transferFile = open(filePath, "r")
+
+        possibleTransfers = []
+        for line in transferFile.readlines():
+                items = line.split()
+                if node == items[0]:
+                        return items
+
+        transferFile.close()
+
+def goingSomewhere(startNode, endNode, count, direction):
+#Direction: -1 -> Down; +1 -> Up; 0 -> Outside
+	if count < 0 or count > 1:
+		print "What you doing!?  Bad direction."
+		sys.exit(1)
+
+	allTransferIds = getRangeFromNode(startNode)
+	allTransferIds = range(int(allTransferIds[5]), int(allTransferIds[6]))
+	if getFileForNode(startNode) == "BSB-2":
+		#392, 393 are "Sean's special T's"
+		allTransferIds.append(392)
+		allTransferIds.append(393)
+	
+	transfers = []
+
+	outsideTransferIds = []
+	if direction == 0:	
+		outsideTransferIds = getRangeFromNode("T" + 390)	#Something outside
+	
+	for transferId in allTransferIds:
+		nodeObject = getNode( "T" + str(transferId) )
+		adjNodes = getAdjacentTransferNodes( "T" + str(transferId) )
+		
+		if direction == -1:
+			maxNode = -1
+			for adjNode in adjNodes[1:]:
+				if int(adjNode[1:]) < int(adjNodes[0][1:]):
+					if int(adjNode[1:]) > maxNode:
+						maxNode = int(adjNode[1:])
+			transfers.append([adjNodes[0][1:] ,"T" + str(maxNode)])
+		elif direction == 1:
+			minNode = 999999
+			for adjNode in adjNodes[1:]:
+				if int(adjNode[1:]) < int(adjNodes[0][1:]):
+					if int(adjNodes[1:]) > minNode:
+						minNode = int(adjNode[1:])
+			transfers.append([adjNodes[0][1:],"T" + str(minNode)])
+		elif direction == 0:
+			for outsideTransfer in outsideTransferIds:
+				for adjNode in adjNodes[1:]:
+					if adjNode[1:] == outsideTransfer:
+						transfers.append(adjNodes[0][1:], "T" + str(outsideTransfer))
+		else:
+			print "YOU CHOSE A BAD DIRECTION!!!!"
+			sys.exit(1)
+
+	return [getNode( transfers[count][0] ), getNode( transfers[count][1] )]
+
+	
+def debugPrintNode(id, levels=0):
+	if type(id) == "string":
+		id = getNode(id)
+
+	for x in range(levels):
+		print "\t",
+	print "Information for node: " + getNodeId( id )
+	
+	for x in range(levels):
+		print "\t",
+	print "\t Type:              " + getNodeType( id )
+
+	for x in range(levels):
+		print "\t",
+	print "\t Coord:             " + str(getNodeCoordinate( id ))
+
+def aStarSearch(startNode, endNode):
+	# Type corrections
+	if type(startNode) == type("someString"):
+		startNode = getNode(startNode)
+	if type(endNode) == type("someString"):
+		endNode = getNode(endNode)
+
+	# Return a list with only "startNode" if startNode and endNode are equivalent
+	if getNodeId(startNode) == getNodeId(endNode):
+		return [ 0, [startNode] ]
+
+	closedSet = []
+	openSet = [ startNode ]
+	g_score = {}
+	g_score[startNode] = [0, [startNode]]
+	while len(openSet) > 0:
+		x = sorted(openSet, key=lambda(k): getDistanceBetweenNodes(k, endNode))[0]
+
+		if getNodeId(x) == getNodeId(endNode):
+			return g_score[x]
+		
+		closedSet.append(x)
+		openSet.remove(x)
+
+		if x != startNode and x != endNode and getNodeType(x) == "transition":
+			continue
+
+		adjacentNodes = getAdjacentNodes( x )
+
+		for node in adjacentNodes:
+			if getNodeType(node) != "transition" or True:
+
+				TriforceOfWisdom = 1
+				TriforceOfCourage = 1
+				for danger in closedSet:
+					if getNodeId(danger) == getNodeId(node):
+						TriforceOfWisdom = 0
+				for peril in openSet:
+					if getNodeId(peril) == getNodeId(node):
+						TriforceOfCourage = 0
+				if TriforceOfCourage:
+					if TriforceOfWisdom:
+						openSet.append(node)
+
+				#if not (node in closedSet):
+					#if not (node in openSet):
+				#if closedSet.count(node) == 0:
+					#if openSet.count(node) == 0:
+
+				g_score[node] = [g_score[x][0] + getDistanceBetweenNodes(x, node), g_score[x][1]+[node]]
+	print "No result found!"
+	print_stack()
+	sys.exit(1)
+
+def drawImage(parameter):
+	results = parameter
+	
+	imagePath = ""
+	if isLive == True:
+		imagePath = r"PNGs/" + getFileForNode( getNodeId(results[1][0]) ) + ".png"
+	else:
+		imagePath = r"../../Images/Converted Files/" + getFileForNode( getNodeId(results[1][0])	) + ".png"
+
+	image = Image.open(imagePath)
+	
+	offset = 0
+	if getFileForNode( getNodeId(results[1][0]) ) != "UICCampus":
+		image = image.rotate(-90)
+	else:
+		offset = -50
+	
+	triangles = []
+
+	draw = ImageDraw.Draw(image)
+	x1, y1 = getNodeCoordinate(results[1][0])
+	x1 = int(x1)
+	y1 = int(y1)
+	x1 = x1*2+offset
+	y1 = y1*2
+	asize = 15
+	arcs = []
+	for excaliber in range(asize-2,asize+2):
+		arcs.append( [(x1-excaliber, y1-excaliber, x1+excaliber, y1+excaliber), (0,0,255,255)] )
+	for index, result in enumerate(results[1]):
+		if(index!=0):
+			x1, y1 = getNodeCoordinate(result)
+			x2, y2 = getNodeCoordinate(results[1][index-1])
+			y3 = 612-x1-135
+			x3 = 792-y1+120
+			y4 = 612-x2-135
+			x4 = 792-y2+120
+			x1 = int(x1)*2+offset
+			x2 = int(x2)*2+offset
+			y1 = int(y1)*2
+			y2 = int(y2)*2
+			x3 = int(x3)*2+offset
+			x4 = int(x4)*2+offset
+			y3 = int(y3)*2
+			y4 = int(y4)*2
+			if index != 0 and index != len(results[1])-1:
+				psize = 5
+				draw.pieslice( (x1-psize, y1-psize, x1+psize, y1+psize), 0, 360, fill = (10, 230, 70, 120) )
+			draw.line((x1,y1, x2,y2), fill = (10,230,70,120),width=12)
+			
+			triX = (x1 + x2)/2
+			triY = (y1 + y2)/2
+			angle = math.atan2( (y1 - y2), (x1 - x2) )
+			size = 10
+			triX1 = triX + size*math.cos(angle)
+			triY1 = triY + size*math.sin(angle)
+
+			triX2 = triX + (size/2)*math.sin(angle)
+			triY2 = triY - (size/2)*math.cos(angle)
+
+			triX3 = triX - (size/2)*math.sin(angle)
+			triY3 = triY + (size/2)*math.cos(angle)
+			
+			triangles.append( (triX1,triY1, triX2, triY2, triX3, triY3) )
+	
+	for triangle in triangles:
+		draw.polygon( triangle, fill=(255,0,70,120) )
+	x1, y1 = getNodeCoordinate(results[1][len(results[1])-1])
+	x1 = int(x1)*2+offset
+	y1 = int(y1)*2
+	for excaliber in range(asize-2,asize+2):
+		arcs.append([ (x1-excaliber, y1-excaliber, x1+excaliber, y1+excaliber), (255,0,0,255)] )
+
+	for arc in arcs:
+		draw.arc(arc[0], 0, 360, fill = arc[1])
+
+	imageSavePath = ""
+	if isLive == True:
+		imageSavePath = r"../html/test.png"
+	else:
+		imageSavePath = r"test.png"	
+
+	# REMEMBER TO KILL ME
+	if showTransfers == True:
+		someListVar = getRangeFromNode(getNodeId(results[1][0]))
+	
+		for anInt in range(int(someListVar[5]), int(someListVar[6])+1):
+			anotherNode = getNode("T"+str(anInt))
+			x1, y1 = getNodeCoordinate(anotherNode)
+			x1 = 2*int(x1)
+			y1 = 2*int(y1)
+			#print "X1: " + str(x1)
+			#print "Y1: " + str(y1)
+			#print getNodeId(anotherNode) + "\n\n"
+		
+			f = ImageFont.load("XML/font/courB24.pil")
+			draw.text((x1-5, y1-5), getNodeId(anotherNode), font=f, fill = (0,0,0) )		
+
+	if getFileForNode( getNodeId(results[1][0]) ) != "UICCampus":
+		image = image.rotate(90)
+
+	image.save(imageSavePath)
+
+
+def findErroneousNodes():
+	if isLive == False:
+		#Do Debug Drawing
+#		tempFile = open("roomnumbermap.txt")
+#		tempLines = tempFile.readlines()
+		
+		for anInt in range(434):
+			#aNodeFile = getFileForNode("R"+anInt)
+			
+			#document = getXMLFile(aNodeFile)
+			if getRoomNameForNode("R"+str(anInt)).find("BROKEN")!=-1:
+				imagePath = r"../../Images/Converted Files/" + getFileForNode( "R" + str(anInt)	) + ".png"
+
+				image = Image.open(imagePath)
+				image = image.rotate(-90)
+				draw = ImageDraw.Draw(image)				
+				x1, y1 = getNodeCoordinate(getNode("R"+str(anInt)))
+				draw.line((x1-15, y1-15, x1+15, y1+15),  fill = (0, 255, 0, 255)) 
+				draw.line((x1-15, y1+15, x1+15, y1-15),  fill = (0, 255, 0, 255)) 
+				image = image.rotate(90)
+				image.save(imagePath[:-4]+"R"+str(anInt)+".png")
+				
+				
+
+def getRoomNameForNode( node ):
+	#If we're given a node, convert it to a string
+	if type(node) != type("someString"):
+		node = getNodeId(node)
+
+	filePath = ""
+	if isLive == True:
+		filePath = r"XML/roomnumbermap.txt"
+	else:
+		filePath = r"roomnumbermap.txt"
+
+	file = open(filePath, "r")
+	Lines = file.readlines()
+	for Line in Lines:
+		item = Line.split()
+		fileNodeId = "R" + item[0]
+		if fileNodeId == node:
+			fileName = getFileForNode( node )
+			if fileName.find("-") != -1:
+				fileName = fileName[0:fileName.find("-")]
+			return fileName + " " + item[1]
+	file.close()
+
+	#Special case!!!
+	if node[0] == "T":
+		campusFilePath = ""
+		if isLive == True:
+			campusFilePath = r"XML/UICCampusnumbermap.txt"
+		else:
+			campusFilePath = r"UICCampusnumbermap.txt"
+		
+		campusFile = open(campusFilePath, "r")
+		for line in campusFile.readlines():
+			item = line.split()
+			if node == item[0]:
+				return item[1]
+		
+		#Later on, we want to remove this return node, somehow
+		return node
+
+	print "Tried searching for " + node + " and didn't get anything."
+	print "\t File: " + getFileForNode( node )
+	print_stack()
+	sys.exit(1)
+
+def getNodeFromRoomName( roomName ):
+	if type(roomName) != type("string"):
+		print "getNodeRoomName was passed a non-string!"
+		sys.exit(1)
+
+	filePath = ""
+	if isLive == True:
+		filePath = r"XML/roomnumbermap.txt"
+	else:
+		filePath = r"roomnumbermap.txt"
+	
+	file = open(filePath, "r")
+	Lines = file.readlines()
+	for Line in Lines:
+		item = Line.split()
+		print "RoomName: " + roomName
+		print "item:     " + item[2] + " " + item[3]
+		if roomName == (item[2] + " " + item[3]):
+			return "R" + item[0]
+
+	#Special Case!!!
+	if roomName[0] == "T" and roomName != "TH":
+		return roomName
+
+	campusFilePath = ""
+	if isLive == True:
+		campusFilePath = r"XML/UICCampusnumbermap.txt"
+	else:
+		campusFilePath = r"UICCampusnumbermap.txt"
+	
+	campusFile = open(campusFilePath, "r")
+	for line in campusFile.readlines():
+		item = line.split()
+		if item[1] == roomName:
+			return item[0]
+
+	print "Tried searching for " + roomName + " and didn't get anything."
+	print_stack()
+	sys.exit(1)
+
+def addToRoomNumberMap():
+	if isLive == True:
+		print "You really shouldn't run this Live!"
+		print_stack()
+		sys.exit(1)
+
+	aFile = open("roomnumbermap.txt", 'r')
+	bFile = open("roomnumbermapfinal.txt", 'w')
+
+	theMajorString = ""
+
+	Lines = aFile.readlines()
+	for line in Lines:
+		item = line.split()
+		theMajorString = theMajorString + item[0] + "\t" + item[1] + "\t"
+		fileName = getFileForNode( "R" + item[0] )
+		if fileName.find("-") != -1:
+			fileName = fileName[0:fileName.find("-")]
+		theMajorString = theMajorString + fileName + "\t" + item[1] + "\n"
+	
+	bFile.write(theMajorString)
+	aFile.close()
+	bFile.close()
+	
+
+# BEGIN TEST CODE BELOW
+
+#addToRoomNumberMap()
+
+#print getRoomNameForNode( "R411")
+
+#results = aStarSearch("R70", "R92")
+#drawImage(results)
+
+#for index, result in enumerate(results[1]):
+#	results[1][index] = getNodeId(result)
+
+#print results
+
+#findErroneousNodes()
+#getNode("T18")
