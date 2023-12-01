@@ -19,8 +19,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: 🔑 Login to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: acmuic.azurecr.io
+          username: acmuic
+          password: ${{ secrets.ACMUIC_AZURECR_IO_PASSWORD }}
       - name: 🏗️ Build and 🚀 push
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: ghcr.io/acm-uic/pathfinder:main
+          tags: |
+            ghcr.io/acm-uic/pathfinder:latest
+            acmuic.azurecr.io/acm-uic/pathfinder:latest
